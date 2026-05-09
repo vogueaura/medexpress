@@ -263,7 +263,7 @@ function SearchContent() {
             })}
           </div>
 
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select value={sortBy} onValueChange={(val) => val && setSortBy(val)}>
             <SelectTrigger className="w-[180px] rounded-xl">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
