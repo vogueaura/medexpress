@@ -15,8 +15,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "MedExpress — Online Pharmacy Delivery",
-    template: "%s | MedExpress",
+    default: "Zayed Pharmacies — Online Pharmacy Delivery",
+    template: "%s | Zayed Pharmacies",
   },
   description:
     "Your trusted smart pharmacy delivery platform. Order medicines, upload prescriptions, and get expert pharmacist advice — delivered to your doorstep.",

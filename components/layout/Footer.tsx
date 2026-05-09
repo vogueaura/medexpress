@@ -90,11 +90,11 @@ export default function Footer() {
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-xl gradient-medical flex items-center justify-center shadow-lg shadow-teal-500/25">
-                <Pill className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm flex items-center justify-center bg-white">
+                <img src="/logo.jpg" alt="Zayed Pharmacies Logo" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                MedExpress
+              <span className="text-xl font-bold bg-gradient-to-r from-teal-700 to-emerald-700 dark:from-teal-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                Zayed Pharmacies
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed mb-4">
@@ -169,7 +169,7 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2.5 text-sm text-foreground/70">
                 <Mail className="w-4 h-4 text-primary shrink-0" />
-                <span>support@medexpress.com</span>
+                <span>support@zayedpharmacies.com</span>
               </li>
             </ul>
           </div>
@@ -181,7 +181,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <p className="flex items-center gap-1">
-            © 2025 MedExpress. Made with <Heart className="w-3 h-3 text-red-500 fill-red-500" /> for better health.
+            © 2025 Zayed Pharmacies. Made with <Heart className="w-3 h-3 text-red-500 fill-red-500" /> for better health.
           </p>
           <div className="flex gap-4">
             <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>

@@ -66,7 +66,7 @@ export default function AdminDashboard() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate">Super Admin</p>
-              <p className="text-xs text-muted-foreground truncate">admin@medexpress.com</p>
+              <p className="text-xs text-muted-foreground truncate">admin@zayedpharmacies.com</p>
             </div>
           </div>
           <Button variant="outline" className="w-full rounded-lg justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10">

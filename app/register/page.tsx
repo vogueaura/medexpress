@@ -40,7 +40,7 @@ export default function RegisterPage() {
             <Pill className="w-4 h-4 text-white" />
           </div>
           <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-            MedExpress
+            Zayed Pharmacies
           </span>
         </Link>
 
@@ -56,7 +56,7 @@ export default function RegisterPage() {
               >
                 <h1 className="text-3xl font-bold mb-2">Create Account</h1>
                 <p className="text-muted-foreground mb-8">
-                  Join MedExpress to get fast delivery and expert advice.
+                  Join Zayed Pharmacies to get fast delivery and expert advice.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -224,7 +224,7 @@ export default function RegisterPage() {
             </div>
           </div>
           
-          <h2 className="text-3xl font-bold mb-4">Join MedExpress</h2>
+          <h2 className="text-3xl font-bold mb-4">Join Zayed Pharmacies</h2>
           <p className="text-lg text-muted-foreground">
             Create an account to track your orders, save addresses, and easily reorder your medicines.
           </p>

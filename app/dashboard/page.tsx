@@ -83,7 +83,7 @@ export default function UserDashboard() {
               <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-md">
                 <Heart className="w-6 h-6" />
               </div>
-              <h4 className="font-bold mb-1">MedExpress Plus</h4>
+              <h4 className="font-bold mb-1">Zayed Pharmacies Plus</h4>
               <p className="text-sm text-white/80 mb-4">Get free delivery on all orders and exclusive discounts.</p>
               <Button className="w-full bg-white text-teal-700 hover:bg-white/90 rounded-xl">
                 Upgrade Now

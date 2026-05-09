@@ -1,8 +1,8 @@
-# 💊 MedExpress - Smart Pharmacy Delivery Platform
+# 💊 Zayed Pharmacies - Smart Pharmacy Delivery Platform
 
-![MedExpress Banner](https://placehold.co/1200x400/0f766e/white?text=MedExpress+Pharmacy)
+![Zayed Pharmacies Banner](https://placehold.co/1200x400/0f766e/white?text=Zayed Pharmacies+Pharmacy)
 
-**MedExpress** is a modern, full-featured Frontend Web Application for an online pharmacy delivery service, built specifically with the Egyptian market in mind. It provides a seamless, fast, and premium user experience for browsing medicines, uploading prescriptions, and managing orders.
+**Zayed Pharmacies** is a modern, full-featured Frontend Web Application for an online pharmacy delivery service, built specifically with the Egyptian market in mind. It provides a seamless, fast, and premium user experience for browsing medicines, uploading prescriptions, and managing orders.
 
 ## ✨ Features
 

@@ -35,7 +35,7 @@ export default function LoginPage() {
             <Pill className="w-4 h-4 text-white" />
           </div>
           <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-            MedExpress
+            Zayed Pharmacies
           </span>
         </Link>
 
@@ -154,7 +154,7 @@ export default function LoginPage() {
           <div className="w-24 h-24 rounded-3xl gradient-medical flex items-center justify-center shadow-xl shadow-teal-500/20 mx-auto mb-8">
             <Pill className="w-12 h-12 text-white" />
           </div>
-          <h2 className="text-3xl font-bold mb-4">MedExpress</h2>
+          <h2 className="text-3xl font-bold mb-4">Zayed Pharmacies</h2>
           <p className="text-lg text-muted-foreground">
             Your trusted online pharmacy. Fast, secure, and reliable medicine delivery to your doorstep.
           </p>
