@@ -1,6 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💊 MedExpress - Smart Pharmacy Delivery Platform
 
-## Getting Started
+![MedExpress Banner](https://placehold.co/1200x400/0f766e/white?text=MedExpress+Pharmacy)
+
+**MedExpress** is a modern, full-featured Frontend Web Application for an online pharmacy delivery service, built specifically with the Egyptian market in mind. It provides a seamless, fast, and premium user experience for browsing medicines, uploading prescriptions, and managing orders.
+
+## ✨ Features
+
+- 🌓 **Dark & Light Mode**: Smooth transition with persistent system preference support.
+- 📱 **Mobile-First Design**: Native app-like experience with a mobile bottom navigation bar.
+- 🔍 **Real-Time Search & Filtering**: Instantly search for medicines and filter by category or price.
+- 🛒 **Smart Cart System**: Real-time cart calculations, including delivery fees and discounts.
+- 📄 **Prescription Uploads**: Dedicated flow for uploading prescriptions for sensitive medicines.
+- 💳 **Multi-Step Checkout**: A beautiful wizard for entering address, payment methods (COD, Card, Wallet), and reviewing orders.
+- 💬 **Ask Pharmacist**: Real-time chat simulation interface to consult a pharmacist.
+- 📊 **User & Admin Dashboards**: Complete dashboards for order tracking, address management, and business analytics.
+
+## 💻 Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Library**: [React 19](https://react.dev/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **Components**: [Shadcn UI](https://ui.shadcn.com/) & [Lucide Icons](https://lucide.dev/)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **State Management**: React Hooks & Context (Local Storage)
+- **Charts**: [Recharts](https://recharts.org/)
+
+## 🚀 Getting Started
 
 First, run the development server:
 
@@ -16,21 +41,16 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📦 Egyptian Market Data Integration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application features realistic data mirroring the Egyptian pharmaceutical market, including:
+- **Real Prices** in EGP (جنيه مصري).
+- **Accurate Descriptions** and Medical Uses in Arabic.
+- **Strict Medical Warnings** for prescription-only medicines (e.g., Antibiotics, Heart Medications).
 
-## Learn More
+## 🌍 Deployment
 
-To learn more about Next.js, take a look at the following resources:
+This project is optimized for deployment on [Vercel](https://vercel.com). Simply import the GitHub repository to your Vercel dashboard and it will automatically detect the Next.js framework and deploy successfully.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Built with ❤️ for a better healthcare experience.*
