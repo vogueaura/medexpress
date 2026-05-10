@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -28,8 +28,9 @@ import {
 } from "@/components/ui/sheet";
 import MedicineCard, { MedicineCardSkeleton } from "@/components/cards/MedicineCard";
 import EmptyState from "@/components/ui/EmptyState";
-import { medicines } from "@/data/medicines";
+import { medicines as staticMedicines } from "@/data/medicines";
 import { categories } from "@/data/categories";
+import { API_URL } from "@/lib/api";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -37,6 +38,8 @@ function SearchContent() {
   const initialCategory = searchParams.get("category") || "";
 
   const [query, setQuery] = useState(initialQuery);
+  const [dbMedicines, setDbMedicines] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialCategory ? [initialCategory] : []
   );
@@ -45,21 +48,36 @@ function SearchContent() {
   const [sortBy, setSortBy] = useState<string>("relevance");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const filteredMedicines = useMemo(() => {
-    let result = [...medicines];
+  useEffect(() => {
+    async function fetchSearch() {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/api/medicines?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        setDbMedicines(data);
+      } catch (err) {
+        console.error("Search fetch failed:", err);
+        setDbMedicines([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchSearch();
+  }, [query]);
 
-    // Search query
-    if (query) {
-      const lower = query.toLowerCase();
-      result = result.filter(
-        (m) =>
-          m.name.toLowerCase().includes(lower) ||
-          m.genericName.toLowerCase().includes(lower) ||
-          m.manufacturer.toLowerCase().includes(lower) ||
-          m.category.toLowerCase().includes(lower)
-      );
+  const filteredMedicines = useMemo(() => {
+    // Determine the base set of medicines
+    let result = [];
+    
+    if (query.trim() !== "") {
+      // If searching, only use database results
+      result = [...dbMedicines];
+    } else {
+      // If not searching, show database items if available, otherwise fallback to static
+      result = dbMedicines.length > 0 ? [...dbMedicines] : [...staticMedicines].slice(0, 20);
     }
 
+    // Apply additional client-side filters (Category, Price, etc.)
     // Categories
     if (selectedCategories.length > 0) {
       result = result.filter((m) => selectedCategories.includes(m.category));
@@ -78,11 +96,11 @@ function SearchContent() {
     // Sort
     if (sortBy === "price-low") result.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-high") result.sort((a, b) => b.price - a.price);
-    else if (sortBy === "rating") result.sort((a, b) => b.rating - a.rating);
-    else if (sortBy === "name") result.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "rating") result.sort((a, b) => (b.rating || 4.5) - (a.rating || 4.5));
+    else if (sortBy === "name") result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
     return result;
-  }, [query, selectedCategories, priceRange, availability, sortBy]);
+  }, [query, dbMedicines, selectedCategories, priceRange, availability, sortBy]);
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>

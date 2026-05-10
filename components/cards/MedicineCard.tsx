@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Medicine } from "@/types";
 import { useCart } from "@/hooks/useCart";
+import { toast } from "sonner";
 
 interface MedicineCardProps {
   medicine: Medicine;
@@ -22,7 +23,8 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
     "out-of-stock": { label: "Out of Stock", className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" },
   };
 
-  const availability = availabilityConfig[medicine.availability];
+  const availabilityKey = medicine.availability || "in-stock";
+  const availability = availabilityConfig[availabilityKey as keyof typeof availabilityConfig] || availabilityConfig["in-stock"];
 
   return (
     <motion.div
@@ -70,13 +72,19 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
         {/* Info */}
         <div className="p-4" dir="rtl">
           <Link href={`/medicine/${medicine.id}`}>
-            <p className="text-xs text-muted-foreground mb-1 font-sans">{medicine.manufacturer}</p>
-            <h3 className="font-semibold text-sm leading-tight mb-1 group-hover:text-primary transition-colors line-clamp-1 font-sans">
+            <p className="text-xs text-muted-foreground mb-1 font-sans">{medicine.manufacturer || "Generic"}</p>
+            <h3 className="font-semibold text-sm leading-tight mb-1 group-hover:text-primary transition-colors line-clamp-1 font-sans min-h-[2.5rem] flex items-center">
               {medicine.name}
             </h3>
-            <p className="text-[10px] text-muted-foreground mb-2 line-clamp-1 font-sans" dir="ltr">{medicine.genericName}</p>
-            {medicine.uses && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-2 line-clamp-1 font-medium bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-md">
+            <p className="text-[10px] text-muted-foreground mb-2 line-clamp-1 font-sans" dir="ltr">{medicine.genericName || medicine.name}</p>
+            {medicine.description && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-2 line-clamp-2 font-medium bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-md">
+                <span className="font-bold block mb-0.5">يستخدم لعلاج:</span>
+                {medicine.description}
+              </p>
+            )}
+            {!medicine.description && medicine.uses && (
+               <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-2 line-clamp-1 font-medium bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-md">
                 {medicine.uses}
               </p>
             )}
@@ -85,14 +93,14 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
           {/* Rating */}
           <div className="flex items-center gap-1 mb-3">
             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-            <span className="text-xs font-medium">{medicine.rating}</span>
-            <span className="text-xs text-muted-foreground">({medicine.reviewCount})</span>
+            <span className="text-xs font-medium">{medicine.rating || 4.5}</span>
+            <span className="text-xs text-muted-foreground">({medicine.reviewCount || 10})</span>
           </div>
 
           {/* Price & CTA */}
           <div className="flex items-center justify-between mt-auto">
             <div className="flex items-baseline gap-1.5" dir="ltr">
-              <span className="text-lg font-bold text-primary">{medicine.price.toFixed(2)} <span className="text-xs">EGP</span></span>
+              <span className="text-lg font-bold text-primary">{medicine.price?.toFixed(2) || "0.00"} <span className="text-xs">EGP</span></span>
               {medicine.originalPrice && (
                 <span className="text-xs text-muted-foreground line-through">
                   {medicine.originalPrice.toFixed(2)}
@@ -103,7 +111,12 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
               size="sm"
               className="rounded-xl gradient-medical text-white border-0 shadow-md shadow-teal-500/20 hover:shadow-teal-500/40 transition-shadow h-8 px-3"
               disabled={medicine.availability === "out-of-stock"}
-              onClick={() => addItem(medicine)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addItem(medicine);
+                toast.success(`${medicine.name} added to cart`);
+              }}
             >
               <ShoppingCart className="w-3.5 h-3.5 mr-1" />
               Add

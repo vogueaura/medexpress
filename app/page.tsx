@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -14,8 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import MedicineCard from "@/components/cards/MedicineCard";
 import CategoryCard from "@/components/cards/CategoryCard";
 import { categories } from "@/data/categories";
-import { medicines, getFeaturedMedicines } from "@/data/medicines";
+import { medicines as staticMedicines } from "@/data/medicines";
 import { offers } from "@/data/offers";
+import { API_URL } from "@/lib/api";
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -29,7 +30,26 @@ const stagger = {
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const featured = getFeaturedMedicines();
+  const [medicines, setMedicines] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchMedicines() {
+      try {
+        const response = await fetch(`${API_URL}/api/medicines`);
+        const data = await response.json();
+        setMedicines(data);
+      } catch (err) {
+        console.error("Failed to fetch medicines:", err);
+        setMedicines(staticMedicines.slice(0, 8)); // Fallback to static
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchMedicines();
+  }, []);
+
+  const featured = medicines.slice(0, 8);
 
   return (
     <div className="min-h-screen">

@@ -17,25 +17,32 @@ import {
   MessageCircle,
   LayoutDashboard,
   Pill,
+  Sparkles,
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useCart } from "@/hooks/useCart";
+import { API_URL } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/search", label: "Medicines", icon: Pill },
+  { href: "/search?category=personal-care", label: "العناية الشخصية", icon: Sparkles },
   { href: "/prescription", label: "Upload Rx", icon: Upload },
   { href: "/chat", label: "Ask Pharmacist", icon: MessageCircle },
 ];
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const pathname = usePathname();
   const { isDark, toggle } = useDarkMode();
   const { itemCount } = useCart();
+  const { user, logout } = useAuth();
 
   const isAdmin = pathname.startsWith("/admin");
   if (isAdmin) return null;
@@ -89,11 +96,51 @@ export default function Navbar() {
 
             {/* Desktop Actions */}
             <div className="hidden lg:flex items-center gap-2">
-              <Link href="/search">
-                <Button variant="ghost" size="icon" className="rounded-xl" aria-label="Search medicines">
-                  <Search className="w-5 h-5" />
-                </Button>
-              </Link>
+              <div className="relative group/search">
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-48 focus:w-64 transition-all rounded-xl h-10 bg-background/50 pl-10"
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    if (val.length < 2) {
+                      setSuggestions([]);
+                      return;
+                    }
+                    try {
+                      const res = await fetch(`${API_URL}/api/medicines/suggestions?q=${encodeURIComponent(val)}`);
+                      const data = await res.json();
+                      setSuggestions(data);
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setSuggestions([]), 200) }
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                
+                <AnimatePresence>
+                  {suggestions.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-xl overflow-hidden z-[60]"
+                    >
+                      {suggestions.map((s: any) => (
+                        <Link 
+                          key={s.id} 
+                          href={`/medicine/${s.id}`}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-accent transition-colors text-sm"
+                        >
+                          <Pill className="w-3 h-3 text-primary" />
+                          <span className="truncate">{s.name}</span>
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               <Button
                 variant="ghost"
@@ -130,12 +177,28 @@ export default function Navbar() {
                 </Button>
               </Link>
 
-              <Link href="/login">
-                <Button className="rounded-xl gradient-medical text-white border-0 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-shadow px-5">
-                  <User className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
-              </Link>
+              {user ? (
+                <div className="flex items-center gap-2">
+                  <Link href="/profile" className="text-sm text-right mr-2 hidden xl:block hover:opacity-80 transition-opacity">
+                    <p className="font-medium leading-none">{user.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">My Account</p>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    className="rounded-xl border-border/50 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                    onClick={logout}
+                  >
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <Link href="/login">
+                  <Button className="rounded-xl gradient-medical text-white border-0 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-shadow px-5">
+                    <User className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Mobile Actions */}
@@ -211,12 +274,25 @@ export default function Navbar() {
                       Dashboard
                     </Button>
                   </Link>
-                  <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                    <Button className="w-full rounded-xl gradient-medical text-white border-0">
-                      <User className="w-4 h-4 mr-2" />
-                      Sign In
+                  {user ? (
+                    <Button 
+                      variant="outline" 
+                      className="w-full rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        logout();
+                        setIsMenuOpen(false);
+                      }}
+                    >
+                      Logout
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                      <Button className="w-full rounded-xl gradient-medical text-white border-0">
+                        <User className="w-4 h-4 mr-2" />
+                        Sign In
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -81,4 +81,12 @@ export const categories: Category[] = [
     count: 37,
     description: "Antacids, probiotics & digestive aids",
   },
+  {
+    id: "personal-care",
+    name: "العناية الشخصية",
+    icon: "Sparkles",
+    color: "from-fuchsia-400 to-purple-600",
+    count: 124,
+    description: "كريمات، برفانات، ومنتجات التجميل",
+  },
 ];

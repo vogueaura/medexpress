@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 const quickLinks = [
   { href: "/search", label: "Browse Medicines" },
   { href: "/prescription", label: "Upload Prescription" },
+  { href: "/track", label: "Track Order" },
   { href: "/chat", label: "Ask Pharmacist" },
   { href: "/cart", label: "My Cart" },
   { href: "/dashboard", label: "My Orders" },
@@ -153,23 +154,35 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact & Payment */}
           <div>
             <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">
-              Contact Us
+              Contact & Payments
             </h4>
             <ul className="space-y-3">
-              <li className="flex items-start gap-2.5 text-sm text-foreground/70">
-                <MapPin className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-                <span>123 Medical Center Blvd, Healthcare City, HC 10001</span>
-              </li>
-              <li className="flex items-center gap-2.5 text-sm text-foreground/70">
-                <Phone className="w-4 h-4 text-primary shrink-0" />
-                <span>+1 (800) 123-4567</span>
-              </li>
               <li className="flex items-center gap-2.5 text-sm text-foreground/70">
                 <Mail className="w-4 h-4 text-primary shrink-0" />
-                <span>support@zayedpharmacies.com</span>
+                <span>mohamedelghrabawy0@gmail.com</span>
+              </li>
+              <li className="flex flex-col gap-1 text-sm text-foreground/70">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-primary shrink-0" />
+                  <span className="font-semibold">InstaPay:</span>
+                  <span>01505075674</span>
+                </div>
+                <div className="flex items-center gap-2.5 pl-6.5 text-[10px] text-primary/70">
+                  <span>(Payment available via InstaPay)</span>
+                </div>
+              </li>
+              <li className="flex flex-col gap-1 text-sm text-foreground/70">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-primary shrink-0" />
+                  <span className="font-semibold">Vodafone Cash:</span>
+                  <span>01004304541</span>
+                </div>
+                <div className="flex items-center gap-2.5 pl-6.5 text-[10px] text-primary/70">
+                  <span>(Payment available via Vodafone Cash)</span>
+                </div>
               </li>
             </ul>
           </div>
@@ -181,7 +194,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <p className="flex items-center gap-1">
-            © 2025 Zayed Pharmacies. Made with <Heart className="w-3 h-3 text-red-500 fill-red-500" /> for better health.
+            © 2026 Zayed Pharmacies. Created by <span className="font-bold text-foreground">Mohamed Shehata Elghrabawy</span> with <Heart className="w-3 h-3 text-red-500 fill-red-500" />
           </p>
           <div className="flex gap-4">
             <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>

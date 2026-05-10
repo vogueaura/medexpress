@@ -15,25 +15,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/hooks/useCart";
 import { toast } from "sonner";
+import { API_URL } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, deliveryFee, total, clearCart, isLoaded } = useCart();
+  const { user } = useAuth();
+  
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [formData, setFormData] = useState({
+    firstName: user ? user.name.split(" ")[0] : "",
+    lastName: user && user.name.split(" ").length > 1 ? user.name.split(" ").slice(1).join(" ") : "",
+    phone: user ? user.phone : "",
+    address: "",
+    city: "",
+    zip: "",
+    notes: "",
+    prescriptionPath: ""
+  });
 
   const hasPrescriptionItems = items.some((item) => item.medicine.prescriptionRequired);
 
-  const [paymentMethod, setPaymentMethod] = useState("cod");
-
-  if (!isLoaded) return null;
-
-  if (items.length === 0 && step !== 4) {
-    router.push("/cart");
-    return null;
-  }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
 
   const handleNext = () => {
+    if (step === 1) {
+      if (!formData.firstName || !formData.phone || !formData.address) {
+        toast.error("Please fill in the required fields (First Name, Phone, Address)");
+        return;
+      }
+    }
     if (step === 2 && hasPrescriptionItems) {
       // Need prescription check
       setStep(3);
@@ -45,15 +62,47 @@ export default function CheckoutPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  if (!isLoaded) return null;
+
+  if (items.length === 0 && step !== 4) {
+    router.push("/cart");
+    return null;
+  }
+
   const handleConfirmOrder = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-    clearCart();
-    setStep(4);
-    toast.success("Order placed successfully!");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const response = await fetch(`${API_URL}/api/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user ? user.id : null,
+          customerName: `${formData.firstName} ${formData.lastName}`.trim(),
+          customerPhone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          totalAmount: total,
+          paymentMethod: paymentMethod,
+          prescriptionPath: formData.prescriptionPath,
+          items: items
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to place order");
+
+      const data = await response.json();
+      console.log("Order created:", data);
+      
+      setIsSubmitting(false);
+      clearCart();
+      setStep(4);
+      toast.success("Order placed successfully!");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,33 +159,33 @@ export default function CheckoutPage() {
                 <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="Ahmed" className="rounded-xl h-11" />
+                    <Input id="firstName" placeholder="Ahmed" className="rounded-xl h-11" value={formData.firstName} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Hassan" className="rounded-xl h-11" />
+                    <Input id="lastName" placeholder="Hassan" className="rounded-xl h-11" value={formData.lastName} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" type="tel" placeholder="+20 100 123 4567" className="rounded-xl h-11" />
+                    <Input id="phone" type="tel" placeholder="+20 100 123 4567" className="rounded-xl h-11" value={formData.phone} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="address">Street Address</Label>
-                    <Input id="address" placeholder="15 Tahrir Street, Apt 4B" className="rounded-xl h-11" />
+                    <Input id="address" placeholder="15 Tahrir Street, Apt 4B" className="rounded-xl h-11" value={formData.address} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
-                    <Input id="city" placeholder="Cairo" className="rounded-xl h-11" />
+                    <Input id="city" placeholder="Cairo" className="rounded-xl h-11" value={formData.city} onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zip">ZIP / Postal Code</Label>
-                    <Input id="zip" placeholder="11511" className="rounded-xl h-11" />
+                    <Input id="zip" placeholder="11511" className="rounded-xl h-11" value={formData.zip} onChange={handleInputChange} />
                   </div>
                 </div>
 
                 <div className="space-y-2 mb-8">
                   <Label htmlFor="notes">Delivery Notes (Optional)</Label>
-                  <Textarea id="notes" placeholder="e.g., Leave at the door" className="rounded-xl min-h-[100px] resize-none" />
+                  <Textarea id="notes" placeholder="e.g., Leave at the door" className="rounded-xl min-h-[100px] resize-none" value={formData.notes} onChange={handleInputChange} />
                 </div>
 
                 <div className="flex justify-end">
@@ -236,27 +285,41 @@ export default function CheckoutPage() {
                     </AnimatePresence>
                   </label>
 
-                  {/* Option 3: Wallet */}
+                  {/* Option 3: InstaPay / Vodafone Cash */}
                   <label className={`block relative p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                    paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/50"
+                    paymentMethod === "instapay-vodafone" ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/50"
                   }`}>
                     <input 
                       type="radio" 
                       name="payment" 
-                      value="wallet" 
-                      checked={paymentMethod === "wallet"} 
-                      onChange={() => setPaymentMethod("wallet")}
+                      value="instapay-vodafone" 
+                      checked={paymentMethod === "instapay-vodafone"} 
+                      onChange={() => setPaymentMethod("instapay-vodafone")}
                       className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-primary focus:ring-primary accent-primary" 
                     />
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 mb-2">
                       <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm">
                         <Wallet className="w-6 h-6 text-purple-600" />
                       </div>
                       <div>
-                        <p className="font-bold">Mobile Wallet</p>
-                        <p className="text-sm text-muted-foreground">Pay with Apple Pay, Google Pay, etc.</p>
+                        <p className="font-bold">InstaPay / Vodafone Cash</p>
+                        <p className="text-sm text-muted-foreground">الدفع عبر تحويل بنكي أو محفظة إلكترونية</p>
                       </div>
                     </div>
+                    {paymentMethod === "instapay-vodafone" && (
+                      <div className="mt-4 p-4 bg-background/50 rounded-xl border border-border/50 text-sm space-y-2" dir="rtl">
+                        <p className="font-semibold text-primary">بيانات التحويل:</p>
+                        <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg">
+                          <span className="font-medium">InstaPay:</span>
+                          <span className="font-bold tabular-nums">01505075674</span>
+                        </div>
+                        <div className="flex justify-between items-center bg-muted/30 p-2 rounded-lg">
+                          <span className="font-medium">Vodafone Cash:</span>
+                          <span className="font-bold tabular-nums">01004304541</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2">يرجى إرسال لقطة شاشة لعملية التحويل عند التأكيد.</p>
+                      </div>
+                    )}
                   </label>
                 </div>
 
@@ -297,10 +360,52 @@ export default function CheckoutPage() {
                           Your order contains prescription medicines. Please upload a valid prescription image. 
                           Our pharmacists will review it before processing your order.
                         </p>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 text-xs px-4 border-0">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Prescription
-                        </Button>
+                        <div className="flex items-center gap-3">
+                          <Button 
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 text-xs px-4 border-0"
+                            onClick={() => document.getElementById('prescription-upload')?.click()}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {formData.prescriptionPath ? 'Change Prescription' : 'Upload Prescription'}
+                          </Button>
+                          <input 
+                            type="file" 
+                            id="prescription-upload" 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              
+                              const uploadToast = toast.loading("Uploading prescription...");
+                              const formDataUpload = new FormData();
+                              formDataUpload.append('prescription', file);
+                              
+                              try {
+                                const res = await fetch(`${API_URL}/api/upload-prescription`, {
+                                  method: 'POST',
+                                  body: formDataUpload
+                                });
+                                const data = await res.json();
+                                if (res.ok) {
+                                  setFormData(prev => ({ ...prev, prescriptionPath: data.path }));
+                                  toast.success("Prescription uploaded!", { id: uploadToast });
+                                } else {
+                                  throw new Error(data.message);
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                toast.error("Upload failed", { id: uploadToast });
+                              }
+                            }}
+                          />
+                          {formData.prescriptionPath && (
+                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Uploaded
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
