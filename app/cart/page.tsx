@@ -41,6 +41,13 @@ export default function CartPage() {
   }
 
   const hasPrescriptionItems = items.some((item) => item.medicine.prescriptionRequired);
+  const unavailableItems = items.filter(
+    (item) =>
+      item.medicine.availability === "out-of-stock" ||
+      item.medicine.stock === 0 ||
+      (typeof item.medicine.stock === "number" && item.quantity > item.medicine.stock)
+  );
+  const canCheckout = unavailableItems.length === 0;
 
   return (
     <div className="min-h-screen bg-muted/20 py-8 lg:py-12">
@@ -58,6 +65,16 @@ export default function CartPage() {
                   <p className="text-xs">
                     Your cart contains prescription medicines. You will need to upload a valid prescription during checkout.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {unavailableItems.length > 0 && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex gap-3 text-red-700 dark:text-red-300">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-sm mb-1">Some items need attention</h4>
+                  <p className="text-xs">Remove out-of-stock items or reduce quantities before checkout.</p>
                 </div>
               </div>
             )}
@@ -95,6 +112,14 @@ export default function CartPage() {
                           {item.medicine.genericName} • {item.medicine.dosage}
                         </p>
 
+                        {item.medicine.availability === "out-of-stock" || item.medicine.stock === 0 ? (
+                          <p className="text-xs font-medium text-red-600 mb-3">Out of stock</p>
+                        ) : typeof item.medicine.stock === "number" ? (
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Available stock: {Math.floor(item.medicine.stock)}
+                          </p>
+                        ) : null}
+
                         <div className="flex items-center justify-between">
                           {/* Quantity Controls */}
                           <div className="flex items-center border border-border rounded-xl h-9">
@@ -113,6 +138,7 @@ export default function CartPage() {
                               variant="ghost"
                               size="icon"
                               className="h-full w-9 rounded-r-xl rounded-l-none"
+                              disabled={typeof item.medicine.stock === "number" && item.quantity >= item.medicine.stock}
                               onClick={() => updateQuantity(item.medicine.id, item.quantity + 1)}
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -181,8 +207,11 @@ export default function CartPage() {
                 <Button variant="outline" className="rounded-xl">Apply</Button>
               </div>
 
-              <Link href="/checkout" className="block">
-                <Button className="w-full h-12 rounded-xl gradient-medical text-white border-0 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 text-base">
+              <Link href={canCheckout ? "/checkout" : "#"} className="block">
+                <Button
+                  disabled={!canCheckout}
+                  className="w-full h-12 rounded-xl gradient-medical text-white border-0 shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 text-base"
+                >
                   Proceed to Checkout <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>

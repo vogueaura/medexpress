@@ -2,12 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { connectDB, getPool } = require('./config/db');
+const sql = require('mssql');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,7 +23,10 @@ process.on('uncaughtException', (err) => {
 });
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({ 
+  origin: ['http://localhost:3000', 'http://192.168.100.7:3000'], 
+  credentials: true 
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -38,6 +43,223 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+
+const INVENTORY_STORE_ID = Number(process.env.INVENTORY_STORE_ID || 1);
+const INVENTORY_OPERATION_CODE = Number(process.env.INVENTORY_OPERATION_CODE || 28);
+const INVENTORY_USER_ID = process.env.INVENTORY_USER_ID ? Number(process.env.INVENTORY_USER_ID) : null;
+
+const getStockExpression = () => `ISNULL(dbo.HistoricalStock2(Items.ID, GETDATE(), ${INVENTORY_STORE_ID}), 0)`;
+
+const getMedicineId = (item) => item?.medicine?.id || item?.medicineId || item?.id;
+const getMedicineName = (item) => item?.medicine?.name || item?.medicineName || item?.name || 'Unknown medicine';
+const getMedicinePrice = (item) => Number(item?.medicine?.price || item?.price || 0);
+
+function splitStockQuantity(quantity, parts) {
+  const normalizedParts = Math.max(1, Number(parts) || 1);
+  const totalUnits = Math.round(Number(quantity) * normalizedParts);
+
+  return {
+    packs: Math.floor(totalUnits / normalizedParts),
+    units: totalUnits % normalizedParts
+  };
+}
+
+function buildInventoryItems(items) {
+  const inventoryItems = new Map();
+
+  for (const item of items) {
+    const medicineId = Number(getMedicineId(item));
+    const quantity = Number(item.quantity);
+
+    if (!Number.isInteger(medicineId) || medicineId <= 0) {
+      const error = new Error('Invalid medicine id in order items');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      const error = new Error('Invalid quantity in order items');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const existing = inventoryItems.get(medicineId);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      inventoryItems.set(medicineId, {
+        medicineId,
+        medicineName: getMedicineName(item),
+        price: getMedicinePrice(item),
+        quantity
+      });
+    }
+  }
+
+  return [...inventoryItems.values()];
+}
+
+async function deductInventoryItem(transaction, item) {
+  const stockResult = await new sql.Request(transaction)
+    .input('medicineId', sql.BigInt, item.medicineId)
+    .input('storeId', sql.BigInt, INVENTORY_STORE_ID)
+    .query(`
+      DECLARE @parts BIGINT;
+
+      SELECT @parts = ISNULL(NULLIF(Parts, 0), 1)
+      FROM Items WITH (UPDLOCK, HOLDLOCK)
+      WHERE ID = @medicineId AND IsActive = 1;
+
+      IF @parts IS NULL
+      BEGIN
+        SELECT CAST(0 AS BIT) AS Found, CAST(0 AS FLOAT) AS CurrentStock, CAST(1 AS BIGINT) AS Parts;
+        RETURN;
+      END;
+
+      ;WITH balances AS (
+        SELECT
+          ISNULL(posItems.StoreNewPacks + CAST(posItems.StoreNewUnits AS FLOAT) / NULLIF(ISNULL(posItems.iParts, @parts), 0), 0) AS CurrentStock,
+          posTickets.ztime,
+          posItems.ID AS RowID
+        FROM posItems WITH (UPDLOCK, HOLDLOCK)
+        INNER JOIN posTickets WITH (HOLDLOCK) ON posItems.TicketID = posTickets.ID
+        WHERE posItems.ItemID = @medicineId AND posItems.StoreID = @storeId
+
+        UNION ALL
+
+        SELECT
+          ISNULL(ItemCards.StoreNewPacks + CAST(ItemCards.StoreNewUnits AS FLOAT) / NULLIF(@parts, 0), 0) AS CurrentStock,
+          ItemCards.ztime,
+          ItemCards.ID AS RowID
+        FROM ItemCards WITH (UPDLOCK, HOLDLOCK)
+        WHERE ItemCards.ItemID = @medicineId AND ItemCards.StoreID = @storeId
+      ),
+      latest AS (
+        SELECT TOP 1 CurrentStock
+        FROM balances
+        ORDER BY ztime DESC, RowID DESC
+      )
+      SELECT
+        CAST(1 AS BIT) AS Found,
+        ISNULL((SELECT CurrentStock FROM latest), 0) AS CurrentStock,
+        @parts AS Parts;
+    `);
+
+  const stock = stockResult.recordset[0];
+  if (!stock?.Found) {
+    const error = new Error(`${item.medicineName} is no longer available`);
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const currentStock = Number(stock.CurrentStock || 0);
+  if (currentStock < item.quantity) {
+    const error = new Error(`${item.medicineName} has only ${currentStock} available`);
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const parts = Number(stock.Parts || 1);
+  const newStock = currentStock - item.quantity;
+  const newBalance = splitStockQuantity(newStock, parts);
+
+  await new sql.Request(transaction)
+    .input('medicineId', sql.BigInt, item.medicineId)
+    .input('operation', sql.BigInt, INVENTORY_OPERATION_CODE)
+    .input('packsDelta', sql.BigInt, -item.quantity)
+    .input('unitsDelta', sql.BigInt, 0)
+    .input('salesPrice', sql.Float, item.price)
+    .input('newPacks', sql.BigInt, newBalance.packs)
+    .input('newUnits', sql.BigInt, newBalance.units)
+    .input('storeId', sql.BigInt, INVENTORY_STORE_ID)
+    .input('userId', sql.BigInt, INVENTORY_USER_ID)
+    .query(`
+      INSERT INTO ItemCards (
+        ItemID, Operation, Packs, Units, SalesPrice, ztime,
+        NewPacks, NewUnits, StoreID, StoreNewPacks, StoreNewUnits,
+        MachineName, UserID, DateModified
+      )
+      VALUES (
+        @medicineId, @operation, @packsDelta, @unitsDelta, @salesPrice, GETDATE(),
+        @newPacks, @newUnits, @storeId, @newPacks, @newUnits,
+        'WEB', @userId, GETDATE()
+      )
+    `);
+}
+
+function createEmailTransporter() {
+  if (!process.env.ADMIN_EMAIL || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE || 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+}
+
+function formatOrderAlert(orderData) {
+  return [
+    '🚨 أوردر جديد في MedExpress!',
+    `- رقم الطلب: #${orderData.orderId}`,
+    `- العميل: ${orderData.customerName}`,
+    `- الهاتف: ${orderData.customerPhone}`,
+    `- العنوان: ${orderData.address}`,
+    `- الإجمالي: ${orderData.totalAmount} EGP`,
+    'يرجى مراجعة لوحة التحكم للتفاصيل.'
+  ].join('\n');
+}
+
+async function sendEmailAlert(orderData) {
+  const transporter = createEmailTransporter();
+  if (!transporter) return;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    to: process.env.ADMIN_EMAIL,
+    subject: `New MedExpress Order #${orderData.orderId}`,
+    text: formatOrderAlert(orderData)
+  });
+}
+
+async function sendWhatsAppAlert(orderData) {
+  if (!process.env.WHATSAPP_API_URL || !process.env.WHATSAPP_TOKEN || !process.env.ADMIN_WHATSAPP_NUMBER) {
+    return;
+  }
+
+  const response = await fetch(process.env.WHATSAPP_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`
+    },
+    body: JSON.stringify({
+      token: process.env.WHATSAPP_TOKEN,
+      to: process.env.ADMIN_WHATSAPP_NUMBER,
+      body: formatOrderAlert(orderData)
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`WhatsApp alert failed with status ${response.status}`);
+  }
+}
+
+async function sendOrderNotifications(orderData) {
+  const results = await Promise.allSettled([
+    sendEmailAlert(orderData),
+    sendWhatsAppAlert(orderData)
+  ]);
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      console.error('Order notification failed:', result.reason);
+    }
+  }
+}
 
 // Middleware to protect admin routes
 const protectAdmin = (req, res, next) => {
@@ -112,6 +334,7 @@ app.get('/api/medicines', async (req, res) => {
       }
     }
 
+    const stockExpression = getStockExpression();
     let baseQuery = `
       SELECT 
         ID as id, 
@@ -121,7 +344,8 @@ app.get('/api/medicines', async (req, res) => {
         DESCRIPTION as description, 
         IsMedicine as isMedicine,
         barcode as barcode,
-        'in-stock' as availability,
+        ${stockExpression} as stock,
+        CASE WHEN ${stockExpression} > 0 THEN 'in-stock' ELSE 'out-of-stock' END as availability,
         'MedExpress' as manufacturer,
         4.5 as rating,
         120 as reviewCount,
@@ -209,6 +433,7 @@ app.get('/api/medicines/:id', async (req, res) => {
     }
 
     const { id } = req.params;
+    const stockExpression = getStockExpression();
     const query = `
       SELECT 
         ID as id, 
@@ -218,7 +443,8 @@ app.get('/api/medicines/:id', async (req, res) => {
         DESCRIPTION as description, 
         IsMedicine as isMedicine,
         barcode as barcode,
-        'in-stock' as availability,
+        ${stockExpression} as stock,
+        CASE WHEN ${stockExpression} > 0 THEN 'in-stock' ELSE 'out-of-stock' END as availability,
         'MedExpress' as manufacturer,
         'tablet' as dosage,
         4.5 as rating,
@@ -247,6 +473,8 @@ app.get('/api/medicines/:id', async (req, res) => {
 
 // Create New Order
 app.post('/api/orders', async (req, res) => {
+  let transaction;
+
   try {
     const pool = getPool();
     if (!pool) return res.status(500).json({ message: 'Database not connected' });
@@ -263,8 +491,17 @@ app.post('/api/orders', async (req, res) => {
       items 
     } = req.body;
 
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Order must include at least one item' });
+    }
+
+    const inventoryItems = buildInventoryItems(items);
+
+    transaction = new sql.Transaction(pool);
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
     // 1. Insert into Orders table
-    const orderResult = await pool.request()
+    const orderResult = await new sql.Request(transaction)
       .input('userId', userId || null)
       .input('customerName', customerName)
       .input('customerPhone', customerPhone)
@@ -283,25 +520,52 @@ app.post('/api/orders', async (req, res) => {
 
     // 2. Insert items into OrderItems table
     for (const item of items) {
-      await pool.request()
+      await new sql.Request(transaction)
         .input('orderId', orderId)
-        .input('medicineId', item.medicine.id)
-        .input('medicineName', item.medicine.name)
+        .input('medicineId', getMedicineId(item))
+        .input('medicineName', getMedicineName(item))
         .input('quantity', item.quantity)
-        .input('price', item.medicine.price)
+        .input('price', getMedicinePrice(item))
         .query(`
           INSERT INTO OrderItems (OrderID, MedicineID, MedicineName, Quantity, Price)
           VALUES (@orderId, @medicineId, @medicineName, @quantity, @price)
         `);
     }
 
+    // 3. Deduct inventory using the same stock source used by the POS stock function.
+    for (const item of inventoryItems) {
+      await deductInventoryItem(transaction, item);
+    }
+
+    await transaction.commit();
+    transaction = null;
+
+    sendOrderNotifications({
+      orderId,
+      customerName,
+      customerPhone,
+      address,
+      totalAmount,
+      items
+    }).catch((err) => {
+      console.error('Order notification failed:', err);
+    });
+
     res.status(201).json({ 
       message: 'Order placed successfully', 
       orderId: orderId 
     });
   } catch (err) {
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error('Order transaction rollback failed:', rollbackErr);
+      }
+    }
+
     console.error('Error creating order:', err);
-    res.status(500).json({ message: 'Failed to place order' });
+    res.status(err.statusCode || 500).json({ message: err.statusCode ? err.message : 'Failed to place order' });
   }
 });
 
@@ -320,9 +584,15 @@ app.get('/api/orders', protectAdmin, async (req, res) => {
     const ordersWithItems = [];
 
     for (const order of orders) {
+      const stockExpression = getStockExpression();
       const itemsResult = await pool.request()
         .input('orderId', order.ID)
-        .query('SELECT * FROM OrderItems WHERE OrderID = @orderId');
+        .query(`
+          SELECT oi.*, ${stockExpression} as CurrentStock
+          FROM OrderItems oi
+          LEFT JOIN Items ON oi.MedicineID = Items.ID
+          WHERE oi.OrderID = @orderId
+        `);
       
       ordersWithItems.push({
         ...order,

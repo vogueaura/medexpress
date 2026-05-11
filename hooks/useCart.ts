@@ -32,15 +32,38 @@ export function useCart() {
 
   const addItem = useCallback((medicine: Medicine, quantity: number = 1) => {
     setItems((prev) => {
+      const requestedQuantity = Math.max(1, quantity);
+      const maxQuantity =
+        typeof medicine.stock === "number"
+          ? Math.max(0, Math.floor(medicine.stock))
+          : undefined;
+
+      if (medicine.availability === "out-of-stock" || maxQuantity === 0) {
+        return prev;
+      }
+
       const existing = prev.find((item) => item.medicine.id === medicine.id);
       if (existing) {
         return prev.map((item) =>
           item.medicine.id === medicine.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? {
+                ...item,
+                medicine,
+                quantity:
+                  maxQuantity === undefined
+                    ? item.quantity + requestedQuantity
+                    : Math.min(maxQuantity, item.quantity + requestedQuantity),
+              }
             : item
         );
       }
-      return [...prev, { medicine, quantity }];
+      return [
+        ...prev,
+        {
+          medicine,
+          quantity: maxQuantity === undefined ? requestedQuantity : Math.min(maxQuantity, requestedQuantity),
+        },
+      ];
     });
   }, []);
 
@@ -52,7 +75,15 @@ export function useCart() {
     if (quantity < 1) return;
     setItems((prev) =>
       prev.map((item) =>
-        item.medicine.id === medicineId ? { ...item, quantity } : item
+        item.medicine.id === medicineId
+          ? {
+              ...item,
+              quantity:
+                typeof item.medicine.stock === "number"
+                  ? Math.min(Math.max(1, Math.floor(item.medicine.stock)), quantity)
+                  : quantity,
+            }
+          : item
       )
     );
   }, []);

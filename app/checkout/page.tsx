@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [formData, setFormData] = useState({
     firstName: user ? user.name.split(" ")[0] : "",
@@ -38,11 +39,23 @@ export default function CheckoutPage() {
   });
 
   const hasPrescriptionItems = items.some((item) => item.medicine.prescriptionRequired);
+  const unavailableItems = items.filter(
+    (item) =>
+      item.medicine.availability === "out-of-stock" ||
+      item.medicine.stock === 0 ||
+      (typeof item.medicine.stock === "number" && item.quantity > item.medicine.stock)
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
+
+  useEffect(() => {
+    if (isLoaded && items.length === 0 && step !== 4) {
+      router.push("/cart");
+    }
+  }, [isLoaded, items.length, router, step]);
 
   const handleNext = () => {
     if (step === 1) {
@@ -65,11 +78,16 @@ export default function CheckoutPage() {
   if (!isLoaded) return null;
 
   if (items.length === 0 && step !== 4) {
-    router.push("/cart");
     return null;
   }
 
   const handleConfirmOrder = async () => {
+    if (unavailableItems.length > 0) {
+      toast.error("Some cart items are out of stock or exceed available stock.");
+      router.push("/cart");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_URL}/api/orders`, {
@@ -88,10 +106,14 @@ export default function CheckoutPage() {
         })
       });
 
-      if (!response.ok) throw new Error("Failed to place order");
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to place order");
+      }
 
       const data = await response.json();
       console.log("Order created:", data);
+      setOrderId(data.orderId);
       
       setIsSubmitting(false);
       clearCart();
@@ -100,7 +122,7 @@ export default function CheckoutPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
-      toast.error("Something went wrong. Please try again.");
+      toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -444,9 +466,12 @@ export default function CheckoutPage() {
                 <div className="grid sm:grid-cols-2 gap-4 mb-8 text-sm">
                   <div className="bg-muted/30 rounded-2xl p-4">
                     <h4 className="font-bold mb-2">Delivery To</h4>
-                    <p className="text-muted-foreground">Ahmed Hassan</p>
-                    <p className="text-muted-foreground">15 Tahrir Street, Apt 4B</p>
-                    <p className="text-muted-foreground">Cairo, 11511</p>
+                    <p className="text-muted-foreground">{`${formData.firstName} ${formData.lastName}`.trim()}</p>
+                    <p className="text-muted-foreground">{formData.phone}</p>
+                    <p className="text-muted-foreground">{formData.address}</p>
+                    <p className="text-muted-foreground">
+                      {[formData.city, formData.zip].filter(Boolean).join(", ")}
+                    </p>
                   </div>
                   <div className="bg-muted/30 rounded-2xl p-4">
                     <h4 className="font-bold mb-2">Payment Method</h4>
@@ -460,7 +485,7 @@ export default function CheckoutPage() {
                   </Button>
                   <Button 
                     onClick={handleConfirmOrder} 
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || unavailableItems.length > 0}
                     className="rounded-xl gradient-medical text-white border-0 px-8 h-12 text-base order-1 sm:order-2 shadow-lg shadow-teal-500/25"
                   >
                     {isSubmitting ? (
@@ -491,11 +516,11 @@ export default function CheckoutPage() {
                 </div>
                 <h1 className="text-3xl font-bold mb-2">Order Confirmed!</h1>
                 <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                  Thank you for your order. Your order ID is <span className="font-bold text-foreground">ORD-2024-889</span>. 
-                  We'll send you an email confirmation with tracking details shortly.
+                  Thank you for your order. Your order ID is <span className="font-bold text-foreground">{orderId ? `ORD-${orderId.toString().padStart(5, "0")}` : "confirmed"}</span>. 
+                  We&apos;ll send you an email confirmation with tracking details shortly.
                 </p>
                 <div className="flex justify-center gap-4">
-                  <Link href="/dashboard">
+                  <Link href={orderId ? `/track?id=${orderId}` : "/dashboard"}>
                     <Button variant="outline" className="rounded-xl px-6">View Order</Button>
                   </Link>
                   <Link href="/">

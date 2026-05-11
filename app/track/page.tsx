@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Package, MapPin, Clock, CheckCircle2, ChevronRight, ArrowLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, Package, Clock, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,18 +10,32 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_URL } from "@/lib/api";
 
-export default function TrackOrderPage() {
-  const [orderId, setOrderId] = useState("");
-  const [order, setOrder] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+type TrackedOrder = {
+  ID: number;
+  Status: string;
+  CustomerName: string;
+  Address: string;
+  City?: string;
+  TotalAmount: number;
+  PaymentMethod: string;
+  CreatedAt: string;
+};
 
-  const handleTrack = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderId) return;
+export default function TrackOrderPage() {
+  const [orderId, setOrderId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("id") || "";
+  });
+  const [order, setOrder] = useState<TrackedOrder | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const hasAutoTracked = useRef(false);
+
+  const fetchOrder = async (idToTrack: string) => {
+    if (!idToTrack) return;
 
     setIsLoading(true);
     try {
-      const id = orderId.replace("ORD-", "").replace(/^0+/, "");
+      const id = idToTrack.replace("ORD-", "").replace(/^0+/, "");
       const res = await fetch(`${API_URL}/api/orders/${id}`);
       
       if (res.ok) {
@@ -37,6 +51,22 @@ export default function TrackOrderPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    if (orderId && !hasAutoTracked.current) {
+      hasAutoTracked.current = true;
+      const timeoutId = window.setTimeout(() => {
+        fetchOrder(orderId);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [orderId]);
+
+  const handleTrack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchOrder(orderId);
   };
 
   const statusSteps = ["pending", "preparing", "shipped", "delivered"];

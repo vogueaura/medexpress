@@ -25,6 +25,7 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
 
   const availabilityKey = medicine.availability || "in-stock";
   const availability = availabilityConfig[availabilityKey as keyof typeof availabilityConfig] || availabilityConfig["in-stock"];
+  const isOutOfStock = medicine.availability === "out-of-stock" || medicine.stock === 0;
 
   return (
     <motion.div
@@ -110,16 +111,20 @@ export default function MedicineCard({ medicine, index = 0 }: MedicineCardProps)
             <Button
               size="sm"
               className="rounded-xl gradient-medical text-white border-0 shadow-md shadow-teal-500/20 hover:shadow-teal-500/40 transition-shadow h-8 px-3"
-              disabled={medicine.availability === "out-of-stock"}
+              disabled={isOutOfStock}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                if (isOutOfStock) {
+                  toast.error(`${medicine.name} is out of stock`);
+                  return;
+                }
                 addItem(medicine);
                 toast.success(`${medicine.name} added to cart`);
               }}
             >
               <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-              Add
+              {isOutOfStock ? "Out" : "Add"}
             </Button>
           </div>
         </div>

@@ -49,7 +49,7 @@ export default function HomePage() {
     fetchMedicines();
   }, []);
 
-  const featured = medicines.slice(0, 8);
+  const featured = Array.isArray(medicines) ? medicines.slice(0, 8) : [];
 
   return (
     <div className="min-h-screen">

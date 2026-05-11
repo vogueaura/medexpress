@@ -1,0 +1,5 @@
+◇ injected env (16) from .env // tip: ⌘ suppress logs { quiet: true }
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+✅ Connected to SQL Server: MedExpressDB on port 55666
+StartServer finished, process should stay alive...
+Server running on http://localhost:5000

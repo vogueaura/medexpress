@@ -70,6 +70,11 @@ export default function MedicineDetailPage() {
 
   const handleAddToCart = () => {
     if (medicine) {
+      if (medicine.availability === "out-of-stock" || medicine.stock === 0) {
+        toast.error(`${medicine.name} is out of stock`);
+        return;
+      }
+
       addItem(medicine, quantity);
       toast.success(`${medicine.name} added to cart`, {
         description: `Quantity: ${quantity}`,
@@ -131,6 +136,8 @@ export default function MedicineDetailPage() {
   };
 
   const avail = availabilityConfig[medicine.availability as keyof typeof availabilityConfig] || availabilityConfig["in-stock"];
+  const availableStock = typeof medicine.stock === "number" ? Math.max(0, Math.floor(medicine.stock)) : undefined;
+  const isOutOfStock = medicine.availability === "out-of-stock" || availableStock === 0;
 
   return (
     <div className="min-h-screen">
@@ -279,6 +286,7 @@ export default function MedicineDetailPage() {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 hover:bg-background rounded-xl"
+                  disabled={availableStock !== undefined && quantity >= availableStock}
                   onClick={() => setQuantity(quantity + 1)}
                 >
                   <Plus className="w-5 h-5" />
@@ -287,7 +295,7 @@ export default function MedicineDetailPage() {
 
               <Button
                 className="flex-1 h-14 rounded-2xl gradient-medical text-white border-0 shadow-xl shadow-teal-500/20 hover:shadow-teal-500/40 hover:scale-[1.02] active:scale-95 transition-all text-lg font-bold"
-                disabled={medicine.availability === "out-of-stock"}
+                disabled={isOutOfStock}
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="w-6 h-6 mr-3" />

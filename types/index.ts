@@ -10,6 +10,7 @@ export interface Medicine {
   manufacturer: string;
   description: string;
   availability: "in-stock" | "low-stock" | "out-of-stock";
+  stock?: number;
   prescriptionRequired: boolean;
   uses?: string;
   warning?: string;

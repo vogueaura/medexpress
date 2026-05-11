@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Package, Clock, CheckCircle2, XCircle, 
@@ -18,6 +18,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const prevOrdersLength = useRef(-1);
 
   const router = useRouter();
 
@@ -44,10 +45,24 @@ export default function AdminOrdersPage() {
         credentials: "include"
       });
       if (response.status === 401) {
+        localStorage.removeItem('isAdmin');
         router.push("/admin/login");
         return;
       }
       const data = await response.json();
+      
+      // Audio notification for new orders
+      if (prevOrdersLength.current !== -1 && data.length > prevOrdersLength.current) {
+        toast.success("🚨 أوردر جديد وصل!");
+        try {
+          const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+          audio.play();
+        } catch (e) {
+          console.log("Audio play failed", e);
+        }
+      }
+      prevOrdersLength.current = data.length;
+      
       setOrders(data);
     } catch (err) {
       console.error(err);
@@ -56,6 +71,7 @@ export default function AdminOrdersPage() {
       if (showLoading) setIsLoading(false);
     }
   };
+
 
   const updateStatus = async (id: number, status: string) => {
     try {
@@ -66,6 +82,7 @@ export default function AdminOrdersPage() {
         body: JSON.stringify({ status })
       });
       if (response.status === 401) {
+        localStorage.removeItem('isAdmin');
         router.push("/admin/login");
         return;
       }
@@ -131,13 +148,13 @@ export default function AdminOrdersPage() {
                 <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
                 <p className="text-muted-foreground">Loading orders...</p>
               </div>
-            ) : orders.length === 0 ? (
+            ) : Array.isArray(orders) && orders.length === 0 ? (
               <div className="text-center py-10 bg-card rounded-2xl border border-border/50">
                 <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                 <p className="text-muted-foreground">No orders yet</p>
               </div>
             ) : (
-              orders.map((order) => (
+              Array.isArray(orders) && orders.map((order) => (
                 <div 
                   key={order.ID} 
                   onClick={() => setSelectedOrder(order)}
@@ -282,6 +299,7 @@ export default function AdminOrdersPage() {
                       <thead className="bg-muted/50">
                         <tr>
                           <th className="px-4 py-3 font-semibold">Medicine</th>
+                          <th className="px-4 py-3 font-semibold text-center">Stock</th>
                           <th className="px-4 py-3 font-semibold text-center">Qty</th>
                           <th className="px-4 py-3 font-semibold text-right">Price</th>
                           <th className="px-4 py-3 font-semibold text-right">Subtotal</th>
@@ -291,6 +309,11 @@ export default function AdminOrdersPage() {
                         {selectedOrder.items.map((item: any) => (
                           <tr key={item.ID} className="hover:bg-muted/20 transition-colors">
                             <td className="px-4 py-3">{item.MedicineName}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-1 rounded-md text-xs font-bold ${item.CurrentStock <= 5 ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'}`}>
+                                {item.CurrentStock ?? '?'}
+                              </span>
+                            </td>
                             <td className="px-4 py-3 text-center">{item.Quantity}</td>
                             <td className="px-4 py-3 text-right">{item.Price.toFixed(2)} EGP</td>
                             <td className="px-4 py-3 text-right font-bold">{(item.Price * item.Quantity).toFixed(2)} EGP</td>
@@ -299,7 +322,7 @@ export default function AdminOrdersPage() {
                       </tbody>
                       <tfoot className="bg-muted/30">
                         <tr>
-                          <td colSpan={3} className="px-4 py-3 text-right font-bold">Total</td>
+                          <td colSpan={4} className="px-4 py-3 text-right font-bold">Total</td>
                           <td className="px-4 py-3 text-right font-bold text-primary text-lg">{selectedOrder.TotalAmount.toFixed(2)} EGP</td>
                         </tr>
                       </tfoot>
